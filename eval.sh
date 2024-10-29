@@ -1,19 +1,20 @@
 #!/bin/bash
 export CUDA_DEVICE_MAX_CONNECTIONS=1
-MODEL_PATH="/aifs4su/rubickjiang/merge_models/32parts_inverse_1000sample"
+MODEL_PATH="/aifs4su/rubickjiang/unlearning/models/gsm8k-base-ds-2e-5/checkpoint-234"
 DATA_PATH=""
-DATASET_NAME="gsm8k"
+DATASET_NAME="medmcqa"
 SPLIT=0
 VALID_DATA_PATH=""
 OUTPUT_DIR=""
 TEMP_PATH=""
 PEFT_MODEL=""
-
+export TORCH_USE_CUDA_DSA=1
 # export CUDA_VISIBLE_DEVICES=0
 # what matters: model_name_or_path, peft_model_path, eval_data_path, per_device_eval_batch_size(fixed)
 export SEED=114514
-accelerate launch evaluation.py \
+accelerate launch --config_file "/home/rubickjiang/.cache/huggingface/accelerate/default_config_debug.yaml" evaluation.py \
   --model_name_or_path "$MODEL_PATH" \
+  --mode "base" \
   --peft_model_path "$PEFT_MODEL" \
   --dataset_name "$DATASET_NAME" \
   --data_path "" \
@@ -30,7 +31,7 @@ accelerate launch evaluation.py \
   --valid_batch_size 16 \
   --filter_training_epochs 30 \
   --per_device_train_batch_size 6 \
-  --per_device_eval_batch_size 8 \
+  --per_device_eval_batch_size 32 \
   --gradient_accumulation_steps 1 \
   --evaluation_strategy "no" \
   --save_strategy "steps" \
