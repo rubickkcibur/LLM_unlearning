@@ -21,7 +21,7 @@ def train_data():
         ground = re.sub(r"<<.*?>>", "", ground)
         return ground
     train_data = []
-    data = load_dataset("gsm8k", data_dir="main", split="train")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/gsm8k", data_dir="main", split="train")
     for d in data:
         train_data.append(
             [
@@ -37,7 +37,7 @@ def self_data():
         num = num.strip()
         num = num.replace(",", "")
         return num
-    data = load_dataset("gsm8k", data_dir="main", split="train")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/gsm8k", data_dir="main", split="train")
     inputs = [
         COT_EXAMPLES_chat +
         [dict(role="user", content = "Question: {}\nLet's think step by step.\n".format(d["question"]))]
@@ -63,7 +63,7 @@ def test_data():
         num = num.strip()
         num = num.replace(",", "")
         return num
-    data = load_dataset("gsm8k", data_dir="main", split="test")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/gsm8k", data_dir="main", split="test")
     inputs = [
         COT_EXAMPLES_chat +
         [dict(role="user", content = "Question: {}\nLet's think step by step.\n".format(d["question"]))]
@@ -82,7 +82,11 @@ def metric(output_text, ground):
     def derive_num_from_output(output_text):
         new_text = output_text.lower()
         new_text = new_text.split("question:")[0]
-        suffix = new_text.split("the answer is")[-1]
+        suffix = new_text.split("the answer is")
+        if len(suffix) > 2:
+            suffix = suffix[1]
+        else:
+            suffix = suffix[-1]
         suffix = suffix.strip()
         if "=" in suffix:
             suffix = suffix.split("=")[-1].strip()

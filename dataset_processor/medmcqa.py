@@ -18,7 +18,7 @@ COT_EXAMPLES_base = "".join(COT_EXAMPLES_base)
 def train_data():
     option_map = ["A", "B", "C", "D"]
     train_data = []
-    data = load_dataset("openlifescienceai/medmcqa", split="train[5:]")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/medmcqa", split="train[5:]")
     for d in data:
         train_data.append(
             [
@@ -39,7 +39,7 @@ def train_data():
 
 def self_data():
     option_map = ["A", "B", "C", "D"]
-    data = load_dataset("openlifescienceai/medmcqa", split="train[5:10000]")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/medmcqa", split="train[5:10000]")
     inputs = [
         COT_EXAMPLES_chat +
         [dict(role="user", content="Question: {}?\n(A) {}\n(B) {}\n(C) {}\n(D) {}\nLet's think step by step:\n".format(
@@ -73,7 +73,7 @@ def self_data():
 
 def test_data():
     option_map = ["A", "B", "C", "D"]
-    data = load_dataset("openlifescienceai/medmcqa", split="validation")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/medmcqa", split="validation")
     inputs = [
         COT_EXAMPLES_chat +
         [dict(role="user", content = "Question: {}?\n(A) {}\n(B) {}\n(C) {}\n(D) {}\nLet's think step by step:\n".format(

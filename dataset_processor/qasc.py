@@ -17,7 +17,7 @@ COT_EXAMPLES_base = "".join(COT_EXAMPLES_base)
 
 def train_data():
     train_data = []
-    data = load_dataset("allenai/qasc", split="train[30:]")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/qasc", split="train[30:]")
     for d in data:
         train_data.append(
             [
@@ -34,7 +34,7 @@ def train_data():
     return train_data
 
 def self_data():
-    data = load_dataset("allenai/qasc", split="train[30:]")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/qasc", split="train[30:]")
     inputs = [
         COT_EXAMPLES_chat +
         [dict(role="user", content="Question: {}\n{}\nLet's think step by step:\n".format(
@@ -63,7 +63,7 @@ def self_data():
     }
 
 def test_data():
-    data = load_dataset("allenai/qasc", split="validation")
+    data = load_dataset("/aifs4su/rubickjiang/public_data/qasc", split="validation")
     inputs = [
         COT_EXAMPLES_chat +
         [dict(role="user", content = "Question: {}\n{}\nLet's think step by step:\n".format(

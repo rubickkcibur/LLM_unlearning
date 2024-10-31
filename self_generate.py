@@ -219,7 +219,7 @@ def evaluation_main():
             if acc <= 0:
                 dump_objs.append({
                     "user": questions[i],
-                    "assistant": pred_sentence.replace("<|eot_id|>", "")
+                    "assistant": pred_sentence.replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
                 })
         dump_path = os.path.join("/aifs4su/rubickjiang/unlearning/data/self_generated_base/", data_args.dataset_name)
         os.makedirs(dump_path, exist_ok=True)

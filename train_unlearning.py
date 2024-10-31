@@ -124,7 +124,7 @@ def load_train_data(tokenizer: transformers.PreTrainedTokenizer, data_args, max_
     )
     return train_dataset
 
-def load_unlearning_data(tokenizer: transformers.PreTrainedTokenizer, data_args, training_args, logger):
+def load_unlearning_data(tokenizer: transformers.PreTrainedTokenizer, data_args, training_args, logger, is_chat_model = True):
     max_len = training_args.model_max_length
     unlearning_portion = data_args.unlearning_portion
     unlearning_alpha = training_args.unlearning_alpha
@@ -150,7 +150,8 @@ def load_unlearning_data(tokenizer: transformers.PreTrainedTokenizer, data_args,
         total_data,
         tokenizer=tokenizer,
         max_len=max_len,
-        weights=weights
+        weights=weights,
+        is_chat_model = is_chat_model
     )
     return train_dataset
 
@@ -178,7 +179,7 @@ def baseline_ds():
 
     logger.info('Loading unlearning data...')
 
-    train_dataset = load_unlearning_data(tokenizerL, data_args, training_args, logger)
+    train_dataset = load_unlearning_data(tokenizerL, data_args, training_args, logger, is_chat_model = ("Instruct" in model_args.model_name_or_path))
     trainer = MyTrainer(
         modelL,
         training_args,

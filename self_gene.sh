@@ -2,7 +2,7 @@
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 MODEL_PATH="/aifs4su/rubickjiang/huggingface_models/Meta-Llama-3-8B"
 DATA_PATH=""
-DATASET_NAME="qasc"
+DATASET_NAME="gsm8k"
 SPLIT=0
 VALID_DATA_PATH=""
 OUTPUT_DIR=""
@@ -12,7 +12,7 @@ export TORCH_USE_CUDA_DSA=1
 # export CUDA_VISIBLE_DEVICES=0
 # what matters: model_name_or_path, peft_model_path, eval_data_path, per_device_eval_batch_size(fixed)
 export SEED=114514
-accelerate launch --config_file "/home/rubickjiang/.cache/huggingface/accelerate/default_config_debug.yaml" self_generate.py \
+accelerate launch --config_file "/home/rubickjiang/.cache/huggingface/accelerate/default_config_acc.yaml" self_generate.py \
   --mode "base" \
   --model_name_or_path "$MODEL_PATH" \
   --peft_model_path "$PEFT_MODEL" \

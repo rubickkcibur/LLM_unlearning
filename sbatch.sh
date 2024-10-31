@@ -8,4 +8,4 @@
 #SBATCH --ntasks-per-node=6
 #SBATCH --gres=gpu:8
 
-bash train_ds.sh
+bash self_gene.sh

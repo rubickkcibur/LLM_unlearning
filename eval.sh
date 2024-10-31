@@ -1,8 +1,8 @@
 #!/bin/bash
 export CUDA_DEVICE_MAX_CONNECTIONS=1
-MODEL_PATH="/aifs4su/rubickjiang/unlearning/models/gsm8k-base-ds-2e-5/checkpoint-234"
+MODEL_PATH="/aifs4su/rubickjiang/unlearning/models/gsm8k-unlearning-base-1vs4-02/checkpoint-234"
 DATA_PATH=""
-DATASET_NAME="medmcqa"
+DATASET_NAME="qasc"
 SPLIT=0
 VALID_DATA_PATH=""
 OUTPUT_DIR=""
