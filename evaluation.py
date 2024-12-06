@@ -133,6 +133,7 @@ def evaluation_main():
     answers = test_dataset["ground"]
     prompts = test_dataset["inputs"]
 
+
     def prepare_prompts(prompts, tokenizer, model_args, batch_size=16):
         if model_args.mode == "chat":
             inputs = [
@@ -182,9 +183,9 @@ def evaluation_main():
                     max_new_tokens=512,
                     eos_token_id=terminators,
                     num_return_sequences=1,
-                    temperature=0.7,
+                    temperature=0,
                     pad_token_id=tokenizerL.eos_token_id,
-                    # do_sample=True
+                    do_sample=False
                 )
 
             # remove prompt from gen. tokens

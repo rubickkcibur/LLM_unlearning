@@ -1,9 +1,19 @@
 #!/bin/bash
+#SBATCH -o /aifs4su/rubickjiang/logs/job.%j.out.log
+#SBATCH --error /aifs4su/rubickjiang/logs/job.%j.err.log
+#SBATCH -p batch
+#SBATCH -J med-gsm8k
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=6
+#SBATCH --gres=gpu:8
+#SBATCH -t 7-00:00:00
+#SBATCH -c 32
+#SBATCH -x dgx-044
 MODEL_PATH="/aifs4su/rubickjiang/huggingface_models/Meta-Llama-3-8B"
-DATA_PATH="/aifs4su/rubickjiang/unlearning/data/self_generated_base/qasc/wrong_answer.jsonl"
-DATASET_NAME="gsm8k"
+DATA_PATH="/aifs4su/rubickjiang/unlearning/data/self_generated_base/gsm8k/wrong_answer.jsonl"
+DATASET_NAME="qasc;medmcqa"
 VALID_DATA_PATH=""
-OUTPUT_DIR="/aifs4su/rubickjiang/unlearning/models/gsm8k-unlearning-base-1vs4-02/"
+OUTPUT_DIR="/aifs4su/rubickjiang/unlearning/models/forwardtest-qasc-medmcqa-0portion"
 TEMP_PATH=""
 export NCCL_DEBUG=INFO
 export NCCL_P2P_DISABLE=1
@@ -23,19 +33,20 @@ accelerate launch --config_file "/home/rubickjiang/.cache/huggingface/accelerate
   --bf16 True \
   --remove_unused_columns False \
   --output_dir "$OUTPUT_DIR" \
-  --filter_model_lr 1e-5 \
+  --filter_model_lr 1e-3 \
   --uncertainty_th 0.8 \
-  --unlearning_alpha 0.2 \
-  --unlearning_portion 0.25 \
+  --unlearning_alpha 0.05 \
+  --unlearning_portion 0 \
+  --unlearning_loss "GA" \
   --num_train_epochs 1 \
   --filter_training_batch_size 8 \
   --valid_batch_size 16 \
   --ddp_find_unused_parameters False \
   --filter_training_epochs 30 \
   --per_device_train_batch_size 4 \
-  --per_device_eval_batch_size 1 \
+  --per_device_eval_batch_size 32 \
   --gradient_accumulation_steps 1 \
-  --evaluation_strategy "no" \
+  --evaluation_strategy "steps" \
   --save_strategy "epoch" \
   --save_only_model True \
   --learning_rate 1e-5 \
@@ -43,8 +54,8 @@ accelerate launch --config_file "/home/rubickjiang/.cache/huggingface/accelerate
   --adam_beta2 0.95 \
   --warmup_ratio 0.01 \
   --lr_scheduler_type "cosine" \
-  --logging_steps 1 \
-  --report_to "none" \
+  --logging_steps 4 \
+  --report_to "wandb" \
   --model_max_length 1024 \
   --lazy_preprocess False \
   --use_lora False \

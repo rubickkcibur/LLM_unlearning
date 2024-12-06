@@ -1,8 +1,16 @@
 #!/bin/bash
+#SBATCH -o /aifs4su/rubickjiang/logs/job.%j.out.log
+#SBATCH --error /aifs4su/rubickjiang/logs/job.%j.err.log
+#SBATCH -p batch
+#SBATCH -J test_eval
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=6
+#SBATCH --gres=gpu:8
+#SBATCH -c 32
 export CUDA_DEVICE_MAX_CONNECTIONS=1
-MODEL_PATH="/aifs4su/rubickjiang/unlearning/models/gsm8k-unlearning-base-1vs4-02/checkpoint-234"
+MODEL_PATH="/aifs4su/rubickjiang/unlearning/models/medmcqa-base-de-qasc-1vs8-0.05/checkpoint-5841"
 DATA_PATH=""
-DATASET_NAME="qasc"
+DATASET_NAME="aqua"
 SPLIT=0
 VALID_DATA_PATH=""
 OUTPUT_DIR=""
@@ -37,7 +45,7 @@ accelerate launch --config_file "/home/rubickjiang/.cache/huggingface/accelerate
   --save_strategy "steps" \
   --save_steps 1000 \
   --save_total_limit 10 \
-  --learning_rate 3e-4 \
+  --learning_rate 2e-4 \
   --weight_decay 0.1 \
   --adam_beta2 0.95 \
   --warmup_ratio 0.01 \

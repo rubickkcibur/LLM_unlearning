@@ -8,11 +8,13 @@ import random
 import numpy as np
 
 from trainLM_tools import SupervisedDataset, build_model, MyTrainer
-from datasets import load_dataset
+from datasets import load_dataset, DatasetDict
 import os
 from accelerate.logging import get_logger
 import logging
 from dataset_processor.processor_registers import *
+import copy
+import wandb
 
 m = transformers.LlamaForCausalLM
 '''
@@ -64,6 +66,9 @@ class DataArguments:
     unlearning_portion: float = field(
         default=0.25
     )
+    arrange: str = field(
+        default="interpolation", metadata={"help": "interpolation, ahead"}
+    )
 
 
 @dataclass
@@ -87,6 +92,15 @@ class TrainingArguments(transformers.TrainingArguments):
     unlearning_alpha: float = field(
         default=0.2
     )
+    seed: int = field(
+        default = 114514
+    )
+    data_seed: int = field(
+        default = 114514
+    )
+    unlearning_loss: str = field(
+        default="GA"
+    )
 
 
 @dataclass
@@ -102,16 +116,44 @@ class LoraArguments:
     q_lora: bool = False
 
 
-def load_valid_data(valid_data_path):
-    assert ":" in valid_data_path
-    name, split = valid_data_path.split(":")
-    if split.isdigit():
-        dataset = load_dataset(name, data_dir="main", split="train[{}:]".format(split)) if name in [
-            "gsm8k"] else load_dataset(name, split="train[{}:]".format(split))
-    else:
-        dataset = load_dataset(name, split=split)
-    print("Load valid dataset, total length is {}".format(len(dataset)))
-    return dataset
+def load_valid_data(tokenizer: transformers.PreTrainedTokenizer, data_args, training_args, logger, is_chat_model = True):
+    logger.info("loading qasc valid data.........")
+    qasc_data = TEST_DATA["qasc"]()["inputs"]
+    qasc_data = qasc_data[:512]
+    qasc_dataset = SupervisedDataset(
+        qasc_data,
+        tokenizer=tokenizer,
+        max_len=training_args.model_max_length,
+        is_chat_model = is_chat_model
+    )
+    logger.info("loading gsm8k valid data.........")
+    gsm8k_data = TEST_DATA["gsm8k"]()["inputs"]
+    gsm8k_data = gsm8k_data[:512]
+    gsm8k_dataset = SupervisedDataset(
+        gsm8k_data,
+        tokenizer=tokenizer,
+        max_len=training_args.model_max_length,
+        is_chat_model = is_chat_model
+    )
+    logger.info("loading medmcqa valid data.........")
+    medmcqa_data = TEST_DATA["medmcqa"]()["inputs"]
+    medmcqa_data = medmcqa_data[:512]
+    medmcqa_dataset = SupervisedDataset(
+        medmcqa_data,
+        tokenizer=tokenizer,
+        max_len=training_args.model_max_length,
+        is_chat_model = is_chat_model
+    )
+    logger.info("loading aqua valid data.........")
+    aqua_data = TEST_DATA["aqua"]()["inputs"]
+    aqua_data = aqua_data[:512]
+    aqua_dataset = SupervisedDataset(
+        aqua_data,
+        tokenizer=tokenizer,
+        max_len=training_args.model_max_length,
+        is_chat_model = is_chat_model
+    )
+    return DatasetDict({"qasc_valid": qasc_dataset, "gsm8k_valid": gsm8k_dataset, "medmcqa_valid": medmcqa_dataset, "aqua_valid": aqua_dataset})
 
 
 
@@ -129,7 +171,13 @@ def load_unlearning_data(tokenizer: transformers.PreTrainedTokenizer, data_args,
     unlearning_portion = data_args.unlearning_portion
     unlearning_alpha = training_args.unlearning_alpha
 
-    train_data = TRAIN_DATA[data_args.dataset_name]()
+    if ";" in data_args.dataset_name:
+        train_data = []
+        names = data_args.dataset_name.split(";")
+        for name in names:
+            train_data.extend(TRAIN_DATA[name]())
+    else:
+        train_data = TRAIN_DATA[data_args.dataset_name]()
     neg_files = data_args.data_path.strip().split(";")
     neg_samples = []
     for file in neg_files:
@@ -143,9 +191,37 @@ def load_unlearning_data(tokenizer: transformers.PreTrainedTokenizer, data_args,
                     ]
                 )
     max_neg_n = int(len(train_data) * unlearning_portion)
-    logger.info("pos data number is {}, neg data number is {}".format(len(train_data), min(len(neg_samples), max_neg_n)))
-    total_data = train_data + neg_samples[:max_neg_n]
-    weights = [1] * len(train_data) + [-unlearning_alpha] * min(len(neg_samples), max_neg_n)
+    total_neg_num = min(len(neg_samples), max_neg_n)
+    logger.info("pos data number is {}, neg data number is {}".format(len(train_data), total_neg_num))
+    if total_neg_num <= 0:
+        total_data = copy.deepcopy(train_data)
+        weights = [1] * len(train_data)
+    elif data_args.arrange == "ahead":
+        total_data = copy.deepcopy(neg_samples[:total_neg_num])
+        weights = [-unlearning_alpha] * total_neg_num
+        total_data.extend(copy.deepcopy(train_data))
+        weights.extend([1]*len(train_data))
+    else:
+        round_n = int(1 / unlearning_portion)
+        logger.info("round number is {}".format(round_n))
+        total_data = []
+        weights = []
+        neg_p = 0
+        for i in range(len(train_data)):
+            if i % (round_n - 1) == 0 and neg_p < total_neg_num:
+                total_data.append(neg_samples[neg_p])
+                neg_p += 1
+                weights.append(-unlearning_alpha)
+            total_data.append(train_data[i])
+            weights.append(1)
+
+    # total_data = copy.deepcopy(train_data)
+    # if max_neg_n > 0:
+    #     total_data += copy.deepcopy(neg_samples[:max_neg_n])
+    # weights = [1] * len(train_data)
+    # if max_neg_n > 0:
+    #     weights += [-unlearning_alpha] * min(len(neg_samples), max_neg_n)
+        
     train_dataset = SupervisedDataset(
         total_data,
         tokenizer=tokenizer,
@@ -160,17 +236,21 @@ def baseline_ds():
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments, LoraArguments)
     )
+    parsed_args = parser.parse_args_into_dataclasses()
     (
         model_args,
         data_args,
         training_args,
         lora_args,
-    ) = parser.parse_args_into_dataclasses()
+    ) = parsed_args
 
     os.makedirs(training_args.output_dir, exist_ok=True)
+    training_args.logging_dir = os.path.join(training_args.output_dir, "logs")
+    with open(os.path.join(training_args.output_dir, "args.log"), "w") as f:
+        f.write(str(parsed_args))
 
     logger.info('Initializing model...')
-
+    #todo: 在output_dir存一个args的file
     modelL, tokenizerL = build_model(model_args, training_args, lora_args, logger)
     tokenizerL.pad_token = tokenizerL.eos_token
     tokenizerL.pad_token_id = tokenizerL.eos_token_id
@@ -180,20 +260,36 @@ def baseline_ds():
     logger.info('Loading unlearning data...')
 
     train_dataset = load_unlearning_data(tokenizerL, data_args, training_args, logger, is_chat_model = ("Instruct" in model_args.model_name_or_path))
+    valid_datasets = load_valid_data(tokenizerL, data_args, training_args, logger, is_chat_model = ("Instruct" in model_args.model_name_or_path))
     trainer = MyTrainer(
         modelL,
         training_args,
         train_dataset=train_dataset,
+        eval_dataset=valid_datasets
     )
     trainer.train()
+    wandb.finish()
 
 
 if __name__ == "__main__":
     seed = 114514
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
     random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["WANDB_PROJECT"]="unlearning"
+    os.environ["WANDB_DIR"]="/aifs4su/rubickjiang/wandb"
+    os.environ["WANDB_LOG_MODEL"]="false"
+    os.environ["WANDB_WATCH"]="false"
+
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
+    torch.use_deterministic_algorithms(True)
+    #Enable CUDNN deterministic mode
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     baseline_ds()
 
